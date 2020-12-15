@@ -5,6 +5,7 @@ CONFIG -= app_bundle
 
 SOURCES += \
         astrocalculator.cpp \
+        gpiocontroller.cpp \
         main.cpp \
         scheduleorganizer.cpp
 
@@ -15,4 +16,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 HEADERS += \
     astrocalculator.h \
+    gpiocontroller.h \
     scheduleorganizer.h

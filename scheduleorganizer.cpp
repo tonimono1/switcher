@@ -1,8 +1,12 @@
 #include "scheduleorganizer.h"
-#include "astrocalculator.h"
+
 #include <QDebug>
 #include <QProcess>
 #include <math.h>
+
+#include "astrocalculator.h"
+#include "gpiocontroller.h"
+
 
 ScheduleOrganizer::ScheduleOrganizer(QObject *parent) : QObject(parent) 
 {
@@ -13,6 +17,7 @@ ScheduleOrganizer::ScheduleOrganizer(QObject *parent) : QObject(parent)
   connect(&sunriseEventTimer, &QTimer::timeout, this,
           &ScheduleOrganizer::sunriseEvent);
   calculateNewEvents();
+  checkCurrentState();
 }
 
 void ScheduleOrganizer::calculateNewEvents() 
@@ -24,9 +29,9 @@ void ScheduleOrganizer::calculateNewEvents()
   double sunset = AstroCalculator::calculateSunset(51.370787, 7.929925,
                                                    currentDate.dayOfYear(), 0);
 
-  QTime sunriseTime(static_cast<int>(sunrise),
+  sunriseTime = QTime(static_cast<int>(sunrise),
                     static_cast<int>(std::round(std::fmod(sunrise, 1) * 60)));
-  QTime sunsetTime(static_cast<int>(sunset),
+  sunsetTime = QTime(static_cast<int>(sunset),
                    static_cast<int>(std::round(std::fmod(sunset, 1) * 60)));
   scheduleSunriseEvent(sunriseTime);
   scheduleSunsetEvent(sunsetTime);
@@ -64,8 +69,6 @@ void ScheduleOrganizer::scheduleSunriseEvent(const QTime &atTime)
   sunriseEventTimer.start(milliSecondsTo(atTime));
   qDebug()
       << QStringLiteral("Next Sunrise Event at: %1").arg(atTime.toString());
-
-  QProcess::execute("sh -c", {"echo 1 > /sys/class/gpio/gpio21/value"});
 }
 
 void ScheduleOrganizer::scheduleSunsetEvent(const QTime &atTime) 
@@ -73,5 +76,21 @@ void ScheduleOrganizer::scheduleSunsetEvent(const QTime &atTime)
   sunsetEventTimer.stop();
   sunsetEventTimer.start(milliSecondsTo(atTime));
   qDebug() << QStringLiteral("Next Sunset Event at: %1").arg(atTime.toString());
-  QProcess::execute("sh -c", {"echo 0 > /sys/class/gpio/gpio21/value"});
+}
+
+void ScheduleOrganizer::checkCurrentState()
+{
+    auto currentTime = QDateTime::currentDateTimeUtc().time();
+    if (currentTime > sunriseTime && currentTime < sunsetTime) {
+        qDebug() << QLatin1String("It's daytime switch off!");
+        switchOn(false);
+    } else {
+        qDebug() << QLatin1String("It's night switch on!");
+        switchOn(true);
+    }
+}
+
+void ScheduleOrganizer::switchOn(bool on)
+{
+    GpioController::switchGpio(21, !on);
 }

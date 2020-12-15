@@ -15,6 +15,8 @@ private:
     int  milliSecondsTo(const QTime &toTime);
     void scheduleSunriseEvent(const QTime &atTime);
     void scheduleSunsetEvent(const QTime &atTime);
+    void checkCurrentState();
+    void switchOn(bool on);
 
 private slots:
     void calculateNewEvents();
@@ -25,6 +27,8 @@ private:
     QTimer updateTimer;
     QTimer sunsetEventTimer;
     QTimer sunriseEventTimer;
+    QTime sunriseTime;
+    QTime sunsetTime;
 };
 
 #endif // SCHEDULEORGANIZER_H
