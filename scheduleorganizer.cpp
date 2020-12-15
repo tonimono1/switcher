@@ -43,12 +43,14 @@ void ScheduleOrganizer::sunsetEvent()
 {
   qDebug() << QStringLiteral("Sunset event at %1")
                   .arg(QDateTime::currentDateTimeUtc().toString());
+  switchOn(true);
 }
 
 void ScheduleOrganizer::sunriseEvent() 
 {
   qDebug() << QStringLiteral("Sunrise event at %1")
                   .arg(QDateTime::currentDateTimeUtc().toString());
+  switchOn(false);
 }
 
 int ScheduleOrganizer::milliSecondsTo(const QTime &toTime) 
