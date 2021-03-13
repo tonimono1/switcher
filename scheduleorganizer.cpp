@@ -42,9 +42,14 @@ void ScheduleOrganizer::checkCurrentState()
         dayOfYear = newDayOfYear;
     }
     QTime currentTime = QDateTime::currentDateTimeUtc().time();
+
+
     QTime offset (2, 0);
-    auto  switchOnTimeSunrise = sunriseTime.addSecs(-2 * 60 * 60);
-    auto  switchOffTimeSunset = sunsetTime.addSecs(2 * 60 * 60);
+    auto  switchOnTimeSunrise = sunriseTime.addSecs(-sunrisePreTimeMinutes * 60);
+    auto  switchOffTimeSunset = sunsetTime.addSecs(sunsetAfterTimeMinutes * 60);
+
+    QTime sunriseTimeWithOffset = sunriseTime.addSecs(sunriseOffsetMinutes * 60);
+    QTime sunsetTimeWithOffset = sunsetTime.addSecs(sunsetOffsetMinutes * 60);
 
     if ((currentTime < switchOnTimeSunrise)) {
         if (state != Night) {
@@ -52,23 +57,23 @@ void ScheduleOrganizer::checkCurrentState()
             switchOn(false);
             state = Night;
         }
-    } else if ((currentTime >= switchOnTimeSunrise) && (currentTime < sunriseTime)) {
-        if (state != OffsetBeforeSunrise) {
+    } else if ((currentTime >= switchOnTimeSunrise) && (currentTime < sunriseTimeWithOffset)) {
+        if (state != TimeBeforeSunrise) {
             qDebug() << QStringLiteral("It's %1 before sunrise --> switch on").arg(offset.toString());
             switchOn(true);
-            state = OffsetBeforeSunrise;
+            state = TimeBeforeSunrise;
         }
-    } else if ((currentTime >= sunriseTime) && (currentTime < sunsetTime)) {
+    } else if ((currentTime >= sunriseTimeWithOffset) && (currentTime < sunsetTimeWithOffset)) {
         if (state != Day) {
             qDebug() << QStringLiteral("It's daytime --> switch off");
             switchOn(false);
             state = Day;
         }
-    } else if ((currentTime >= sunsetTime) && (currentTime < switchOffTimeSunset)) {
-        if (state != OffsetAfterSunset) {
+    } else if ((currentTime >= sunsetTimeWithOffset) && (currentTime < switchOffTimeSunset)) {
+        if (state != TimeAfterSunset) {
             qDebug() << QStringLiteral("It's sunset --> switch on");
             switchOn(true);
-            state = OffsetAfterSunset;
+            state = TimeAfterSunset;
         }
     } else if (currentTime >= switchOffTimeSunset) {
         if (state != Night) {
@@ -80,6 +85,26 @@ void ScheduleOrganizer::checkCurrentState()
         qDebug() << QStringLiteral("Should not happen");
         state = Unkown;
     }
+}
+
+void ScheduleOrganizer::setSunsetAfterTimeMinutes(int value)
+{
+    sunsetAfterTimeMinutes = value;
+}
+
+void ScheduleOrganizer::setSunrisePreTimeMinutes(int value)
+{
+    sunrisePreTimeMinutes = value;
+}
+
+void ScheduleOrganizer::setSunsetOffsetMinutes(int value)
+{
+    sunsetOffsetMinutes = value;
+}
+
+void ScheduleOrganizer::setSunriseOffsetMinutes(int value)
+{
+    sunriseOffsetMinutes = value;
 }
 
 void ScheduleOrganizer::switchOn(bool on)

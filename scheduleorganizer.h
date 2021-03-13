@@ -11,14 +11,18 @@ class ScheduleOrganizer : public QObject
 
     enum State {
         Night,
-        OffsetBeforeSunrise,
+        TimeBeforeSunrise,
         Day,
-        OffsetAfterSunset,
+        TimeAfterSunset,
         Unkown
     };
 
 public:
     explicit ScheduleOrganizer(QObject *parent = nullptr);
+    void setSunriseOffsetMinutes(int value);
+    void setSunsetOffsetMinutes(int value);
+    void setSunrisePreTimeMinutes(int value);
+    void setSunsetAfterTimeMinutes(int value);
 
 private:
     int  milliSecondsTo(const QTime &toTime);
@@ -36,6 +40,11 @@ private:
     QTime sunriseTime;
     QTime sunsetTime;
     State state = Unkown;
+
+    int sunriseOffsetMinutes = 0;
+    int sunsetOffsetMinutes = 0;
+    int sunrisePreTimeMinutes = 120;
+    int sunsetAfterTimeMinutes = 120;
 };
 
 #endif // SCHEDULEORGANIZER_H
