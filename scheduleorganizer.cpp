@@ -11,13 +11,10 @@
 ScheduleOrganizer::ScheduleOrganizer(QObject *parent) : QObject(parent) 
 {
   connect(&updateTimer, &QTimer::timeout, this,
-          &ScheduleOrganizer::calculateNewEvents);
-  connect(&sunsetEventTimer, &QTimer::timeout, this,
-          &ScheduleOrganizer::sunsetEvent);
-  connect(&sunriseEventTimer, &QTimer::timeout, this,
-          &ScheduleOrganizer::sunriseEvent);
-  calculateNewEvents();
+          &ScheduleOrganizer::checkCurrentState);
   checkCurrentState();
+  updateTimer.setInterval(60 * 1000);
+  updateTimer.start();
 }
 
 void ScheduleOrganizer::calculateNewEvents() 
@@ -33,62 +30,55 @@ void ScheduleOrganizer::calculateNewEvents()
                     static_cast<int>(std::round(std::fmod(sunrise, 1) * 60)));
   sunsetTime = QTime(static_cast<int>(sunset),
                    static_cast<int>(std::round(std::fmod(sunset, 1) * 60)));
-  scheduleSunriseEvent(sunriseTime);
-  scheduleSunsetEvent(sunsetTime);
-  updateTimer.stop();
-  updateTimer.start(milliSecondsTo(QTime(0, 0)));
-}
 
-void ScheduleOrganizer::sunsetEvent() 
-{
-  qDebug() << QStringLiteral("Sunset event at %1")
-                  .arg(QDateTime::currentDateTimeUtc().toString());
-  switchOn(true);
-}
-
-void ScheduleOrganizer::sunriseEvent() 
-{
-  qDebug() << QStringLiteral("Sunrise event at %1")
-                  .arg(QDateTime::currentDateTimeUtc().toString());
-  switchOn(false);
-}
-
-int ScheduleOrganizer::milliSecondsTo(const QTime &toTime) 
-{
-  constexpr int MILLI_SECONDS_PER_DAY = 24 * 60 * 60 * 1000;
-
-  auto currentTime = QDateTime::currentDateTimeUtc().time();
-  int milliSeconds = currentTime.msecsTo(toTime);
-  if (milliSeconds < 0) {
-    milliSeconds += MILLI_SECONDS_PER_DAY;
-  }
-  return milliSeconds;
-}
-
-void ScheduleOrganizer::scheduleSunriseEvent(const QTime &atTime) 
-{
-  sunriseEventTimer.stop();
-  sunriseEventTimer.start(milliSecondsTo(atTime));
-  qDebug()
-      << QStringLiteral("Next Sunrise Event at: %1").arg(atTime.toString());
-}
-
-void ScheduleOrganizer::scheduleSunsetEvent(const QTime &atTime) 
-{
-  sunsetEventTimer.stop();
-  sunsetEventTimer.start(milliSecondsTo(atTime));
-  qDebug() << QStringLiteral("Next Sunset Event at: %1").arg(atTime.toString());
+  qDebug() << QStringLiteral("Sunrise at %1  Sunset at %2").arg(sunriseTime.toString(), sunsetTime.toString());
 }
 
 void ScheduleOrganizer::checkCurrentState()
 {
-    auto currentTime = QDateTime::currentDateTimeUtc().time();
-    if (currentTime > sunriseTime && currentTime < sunsetTime) {
-        qDebug() << QLatin1String("It's daytime switch off!");
-        switchOn(false);
+    int newDayOfYear = QDate::currentDate().dayOfYear();
+    if (newDayOfYear != dayOfYear) {
+        calculateNewEvents();
+        dayOfYear = newDayOfYear;
+    }
+    QTime currentTime = QDateTime::currentDateTimeUtc().time();
+    QTime offset (2, 0);
+    auto  switchOnTimeSunrise = sunriseTime.addSecs(-2 * 60 * 60);
+    auto  switchOffTimeSunset = sunsetTime.addSecs(2 * 60 * 60);
+
+    if ((currentTime < switchOnTimeSunrise)) {
+        if (state != Night) {
+            qDebug() << QStringLiteral("It's night --> switch off");
+            switchOn(false);
+            state = Night;
+        }
+    } else if ((currentTime >= switchOnTimeSunrise) && (currentTime < sunriseTime)) {
+        if (state != OffsetBeforeSunrise) {
+            qDebug() << QStringLiteral("It's %1 before sunrise --> switch on").arg(offset.toString());
+            switchOn(true);
+            state = OffsetBeforeSunrise;
+        }
+    } else if ((currentTime >= sunriseTime) && (currentTime < sunsetTime)) {
+        if (state != Day) {
+            qDebug() << QStringLiteral("It's daytime --> switch off");
+            switchOn(false);
+            state = Day;
+        }
+    } else if ((currentTime >= sunsetTime) && (currentTime < switchOffTimeSunset)) {
+        if (state != OffsetAfterSunset) {
+            qDebug() << QStringLiteral("It's sunset --> switch on");
+            switchOn(true);
+            state = OffsetAfterSunset;
+        }
+    } else if (currentTime >= switchOffTimeSunset) {
+        if (state != Night) {
+            switchOn(false);
+            qDebug() << QStringLiteral("It's %1 after sunset --> switch off").arg(offset.toString());
+            state = Night;
+        }
     } else {
-        qDebug() << QLatin1String("It's night switch on!");
-        switchOn(true);
+        qDebug() << QStringLiteral("Should not happen");
+        state = Unkown;
     }
 }
 
